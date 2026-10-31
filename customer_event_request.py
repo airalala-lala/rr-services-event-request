@@ -4,6 +4,7 @@ Never add the service-role key to this public app.
 from datetime import date, time
 import streamlit as st
 from supabase import create_client
+from event_excel import excel_bytes
 
 st.set_page_config(page_title="RR Services | Event Request",page_icon="🍽️",layout="centered")
 st.title("RR SERVICES")
@@ -61,6 +62,11 @@ if submit:
         try:
             res=db.rpc("rr_submit_event_request",{"payload":payload}).execute()
             st.success(f"Request submitted! Reference: {res.data}")
+            try:
+                file_data = excel_bytes(dict(requestor=requester.strip(),email=email.strip(),phone=phone,department=dept,event_name=title.strip(),notes=notes), sessions)
+                st.download_button("📥 Download Event Request Excel", file_data, file_name="RR_Event_Request_" + date.today().strftime("%Y%m%d") + ".xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", on_click="ignore")
+            except Exception:
+                st.warning("Request submitted, but Excel download could not be prepared. Please contact RR Services.")
             st.info("Status: Pending Review. RR Services will confirm your event after reviewing the request.")
         except Exception:
             st.error("Submission failed. Please contact RR Services and try again. Do not repeatedly resubmit if you already received a reference.")
