@@ -1,3 +1,35 @@
+"""RR Services public Event Request Form.
+
+Streamlit secrets: SUPABASE_URL and SUPABASE_ANON_KEY.
+Never put a service-role key in this public app.
+"""
+from datetime import date, time
+import streamlit as st
+from supabase import create_client
+from event_excel import excel_bytes
+
+st.set_page_config(page_title="RR Services | Event Request", page_icon="🍽️", layout="centered")
+st.title("RR SERVICES")
+st.subheader("Event Request Form")
+st.caption("Please provide your event and food delivery requirements. RR Services will review your request.")
+
+if not st.secrets.get("SUPABASE_URL") or not st.secrets.get("SUPABASE_ANON_KEY"):
+    st.error("App not configured. Please contact RR Services.")
+    st.stop()
+
+@st.cache_resource
+def client(url, key):
+    return create_client(url, key)
+
+db = client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_ANON_KEY"])
+
+if "submitted_request" not in st.session_state:
+    st.session_state.submitted_request = None
+
+if st.session_state.submitted_request is not None:
+    saved = st.session_state.submitted_request
+    st.success(f"Request submitted! Reference: {saved['reference']}")
+    st.info("Status: Pending Review. RR Services will confirm your event after reviewing the request.")
     if saved.get("excel"):
         st.download_button(
             "📥 Download Event Request Excel",
