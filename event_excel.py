@@ -30,7 +30,10 @@ def excel_bytes(request, sessions):
 
     for sn, session in enumerate(sessions, 1):
         items = session.get("items") or []
-        chunks = [items[i:i + 3] for i in range(0, len(items), 3)] or [[]]
+        chunks = [
+            items[i:i + 3]
+            for i in range(0, len(items), 3)
+        ] or [[]]
 
         for part, chunk in enumerate(chunks, 1):
             ws = base if first else wb.copy_worksheet(base)
@@ -41,8 +44,7 @@ def excel_bytes(request, sessions):
                 + (f" part {part}" if len(chunks) > 1 else "")
             )[:31]
 
-            # Widen columns to avoid ####### for currency values.
-            # Preserve the original template's merged cells and styling.
+            # Widen columns to prevent ####### for currency values.
             widths = {
                 "A": 20,
                 "B": 15,
@@ -55,7 +57,7 @@ def excel_bytes(request, sessions):
             for col, width in widths.items():
                 ws.column_dimensions[col].width = width
 
-            # Format all monetary values consistently.
+            # Format monetary values.
             for row in (16, 17, 18, 19):
                 cell = ws[f"L{row}"]
                 cell.number_format = '"RM" #,##0.00'
@@ -64,6 +66,7 @@ def excel_bytes(request, sessions):
                     vertical="center"
                 )
 
+            # Part 1: Requestor details.
             ws["D4"] = request.get("quotation_reference") or ""
 
             created = request.get("created_at") or date.today().isoformat()
@@ -75,6 +78,7 @@ def excel_bytes(request, sessions):
             ws["D10"] = request.get("department") or ""
             ws["D11"] = request.get("event_name") or ""
 
+            # Part 2: Delivery session.
             label = str(session.get("session_label") or "EVENT")
             ws["D14"] = "ORDERING TYPE - " + label.upper()[:60]
 
@@ -91,12 +95,13 @@ def excel_bytes(request, sessions):
             ws["B16"] = str(session.get("delivery_time") or "")[:5]
             ws["C16"] = session.get("venue") or ""
 
+            # Menu items.
             for idx, item in enumerate(chunk):
                 row = 16 + idx
 
                 ws[f"E{row}"] = item.get("menu_description") or ""
 
-                # Only show billing codes explicitly verified by RR Services.
+                # Only show verified billing codes.
                 ws[f"I{row}"] = (
                     item.get("verified_billing_code") or ""
                 )
@@ -117,13 +122,14 @@ def excel_bytes(request, sessions):
                 ws[f"J{row}"] = float(price)
                 ws[f"K{row}"] = float(qty)
 
-                # Calculate each menu item's amount.
+                # Calculate amount.
                 ws[f"L{row}"] = f"=J{row}*K{row}"
 
-            # Total for this worksheet.
+            # Worksheet total.
             ws["L19"] = "=SUM(L16:L18)"
             ws["L19"].number_format = '"RM" #,##0.00'
 
+            # Remarks.
             remarks = request.get("notes") or ""
 
             extra = "; ".join(
@@ -139,7 +145,7 @@ def excel_bytes(request, sessions):
 
             if len(chunks) > 1:
                 page_note = (
-                    f"Session {sn}, page {part}/{len(chunks]}. "
+                    f"Session {sn}, page {part}/{len(chunks)}. "
                     "Session total is across all its pages."
                 )
                 remarks = (
