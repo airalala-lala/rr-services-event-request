@@ -74,6 +74,14 @@ def excel_bytes(request, sessions):
 
             ws["D7"] = request.get("requestor") or ""
             ws["D8"] = request.get("email") or ""
+
+            # Keep email aligned to the left.
+            ws["D8"].alignment = Alignment(
+                horizontal="left",
+                vertical="center",
+                indent=0
+            )
+
             ws["D9"] = request.get("phone") or ""
             ws["D10"] = request.get("department") or ""
             ws["D11"] = request.get("event_name") or ""
