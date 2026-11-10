@@ -66,6 +66,15 @@ def excel_bytes(request, sessions):
             for col, width in widths.items():
                 ws.column_dimensions[col].width = width
 
+            # Taller menu rows so long descriptions are not squeezed.
+            MENU_ROW_HEIGHT = 45
+            for row in (16, 17, 18):
+                ws.row_dimensions[row].height = MENU_ROW_HEIGHT
+                ws[f"E{row}"].alignment = Alignment(
+                    wrap_text=True,
+                    vertical="center"
+                )
+
             # Format monetary values.
             for row in (16, 17, 18, 19):
                 cell = ws[f"L{row}"]
