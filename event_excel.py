@@ -1,4 +1,3 @@
-
 """RR Services Event Request Excel export using the original template."""
 
 from io import BytesIO
@@ -12,6 +11,13 @@ from openpyxl.styles import Alignment
 TEMPLATE = Path(__file__).resolve().parent / "event_request_template.xlsx"
 
 
+def put(ws, ref, value):
+    """Write text typed by a customer without letting it become an Excel formula."""
+    ws[ref] = value
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
+        ws[ref].data_type = "s"
+
+
 def excel_bytes(request, sessions):
     """Generate an Excel workbook from one event request.
 
@@ -22,11 +28,15 @@ def excel_bytes(request, sessions):
 
     wb = load_workbook(TEMPLATE)
     base = wb.worksheets[0]
+    base.title = "_template_base"
+    # Every sheet is copied from this CLEAN copy. Before, sheets were copied from a sheet
+    # that had already been filled, so old menu rows leaked into later sessions.
+    pristine = wb.copy_worksheet(base)
+    pristine.title = "_template_clean"
 
     if not sessions:
         sessions = [{"session_label": "Event", "items": []}]
 
-    first = True
 
     for sn, session in enumerate(sessions, 1):
         items = session.get("items") or []
@@ -36,8 +46,7 @@ def excel_bytes(request, sessions):
         ] or [[]]
 
         for part, chunk in enumerate(chunks, 1):
-            ws = base if first else wb.copy_worksheet(base)
-            first = False
+            ws = wb.copy_worksheet(pristine)
 
             ws.title = (
                 f"Session {sn}"
@@ -67,13 +76,13 @@ def excel_bytes(request, sessions):
                 )
 
             # Part 1: Requestor details.
-            ws["D4"] = request.get("quotation_reference") or ""
+            put(ws, "D4", request.get("quotation_reference") or "")
 
             created = request.get("created_at") or date.today().isoformat()
             ws["D6"] = str(created)[:10]
 
-            ws["D7"] = request.get("requestor") or ""
-            ws["D8"] = request.get("email") or ""
+            put(ws, "D7", request.get("requestor") or "")
+            put(ws, "D8", request.get("email") or "")
 
             # Keep email aligned to the left.
             ws["D8"].alignment = Alignment(
@@ -82,9 +91,9 @@ def excel_bytes(request, sessions):
                 indent=0
             )
 
-            ws["D9"] = request.get("phone") or ""
-            ws["D10"] = request.get("department") or ""
-            ws["D11"] = request.get("event_name") or ""
+            put(ws, "D9", request.get("phone") or "")
+            put(ws, "D10", request.get("department") or "")
+            put(ws, "D11", request.get("event_name") or "")
 
             # Part 2: Delivery session.
             label = str(session.get("session_label") or "EVENT")
@@ -99,20 +108,18 @@ def excel_bytes(request, sessions):
             except (ValueError, TypeError):
                 delivery_date = str(delivery_date)
 
-            ws["A16"] = delivery_date
-            ws["B16"] = str(session.get("delivery_time") or "")[:5]
-            ws["C16"] = session.get("venue") or ""
+            put(ws, "A16", delivery_date)
+            put(ws, "B16", str(session.get("delivery_time") or "")[:5])
+            put(ws, "C16", session.get("venue") or "")
 
             # Menu items.
             for idx, item in enumerate(chunk):
                 row = 16 + idx
 
-                ws[f"E{row}"] = item.get("menu_description") or ""
+                put(ws, f"E{row}", item.get("menu_description") or "")
 
                 # Only show verified billing codes.
-                ws[f"I{row}"] = (
-                    item.get("verified_billing_code") or ""
-                )
+                put(ws, f"I{row}", item.get("verified_billing_code") or "")
 
                 qty = Decimal(
                     str(item.get("actual_qty") or 0)
@@ -160,11 +167,14 @@ def excel_bytes(request, sessions):
                     remarks + " | " if remarks else ""
                 ) + page_note
 
-            ws["A20"] = remarks
+            put(ws, "A20", remarks)
             ws["A20"].alignment = Alignment(
                 wrap_text=True,
                 vertical="top"
             )
+
+    wb.remove(base)
+    wb.remove(pristine)
 
     output = BytesIO()
     wb.save(output)
