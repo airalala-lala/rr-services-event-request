@@ -44,7 +44,7 @@ if st.session_state.submitted_request is not None:
         st.rerun()
     st.stop()
 
-with st.form("event_form", clear_on_submit=False):
+with st.container():   # was st.form: a form does not refresh until Submit is pressed
     st.markdown("### Part 1 — Requestor Details")
     requester = st.text_input("Requestor Full Name *", max_chars=150)
     email = st.text_input("Email Address *", max_chars=200)
@@ -103,7 +103,7 @@ with st.form("event_form", clear_on_submit=False):
     notes = st.text_area("Additional Instructions", placeholder="e.g. Include cutlery, separate sauces, buffet setup required")
     st.caption("Billing codes are assigned internally by RR Services. Submission does not confirm your booking.")
     confirmed = st.checkbox("I confirm the information above is accurate.")
-    submit = st.form_submit_button("Submit Event Request", type="primary")
+    submit = st.button("Submit Event Request", type="primary")
 
 if submit:
     errors = []
